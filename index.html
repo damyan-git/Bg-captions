@@ -78,30 +78,23 @@
         main {
             flex: 1;
             padding: 2rem;
-            overflow-y: auto;
             display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow-y: auto;
         }
 
         #transcript-container {
-            max-width: 1000px;
-            margin: 0 auto;
+            max-width: 900px;
             width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
         }
 
-        .utterance {
-            font-size: var(--font-size, 2rem);
-            line-height: 1.4;
-            transition: opacity 0.3s;
-        }
-
-        .utterance.interim {
-            opacity: 0.6;
-            font-style: italic;
+        #current-text {
+            font-size: var(--font-size, 2.5rem);
+            line-height: 1.5;
+            font-weight: 500;
+            word-break: break-word;
         }
 
         .status-bar {
@@ -120,7 +113,7 @@
             height: 8px;
             border-radius: 50%;
             background-color: #64748b;
-            margin-right: 0.5s;
+            margin-right: 0.5rem;
         }
 
         .status-indicator.listening {
@@ -137,10 +130,10 @@
             <div class="settings-group">
                 <label for="font-size-select">Размер:</label>
                 <select id="font-size-select" onchange="updateFontSize(this.value)">
-                    <option value="1.5rem">Нормален</option>
-                    <option value="2rem" selected>Голям</option>
-                    <option value="2.5rem">Много голям</option>
-                    <option value="3rem">Гигантски</option>
+                    <option value="2rem">Нормален</option>
+                    <option value="2.5rem" selected>Голям</option>
+                    <option value="3rem">Много голям</option>
+                    <option value="3.5rem">Гигантски</option>
                 </select>
             </div>
             <button id="toggle-btn" onclick="toggleRecognition()">Старт микрофон</button>
@@ -149,7 +142,7 @@
 
     <main>
         <div id="transcript-container">
-            <div class="utterance interim" id="current-text">Натиснете „Старт микрофон“, за да започнете речта...</div>
+            <div id="current-text">Натиснете „Старт микрофон“, за да започнете речта...</div>
         </div>
     </main>
 
@@ -157,16 +150,17 @@
         <div><span class="status-indicator" id="status-dot"></span> <span id="status-text">В готовност</span></div>
         <div>Web Speech API (bg-BG)</div>
     </div>
+
     <script>
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition = null;
         let isListening = false;
+        let accumulatedText = "";
 
         const toggleBtn = document.getElementById('toggle-btn');
         const currentTextElem = document.getElementById('current-text');
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
-        const container = document.getElementById('transcript-container');
 
         if (!SpeechRecognition) {
             alert('Вашият браузър не поддържа Web Speech API. Използвайте Google Chrome.');
@@ -186,24 +180,26 @@
                 statusText.textContent = 'Слушане...';
             };
 
-                        recognition.onresult = (event) => {
-                let interim = '';
-                
-                // Взимаме само най-новия резултат от опашката
-                const result = event.results[event.results.length - 1];
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalChunk = '';
 
-                if (result.isFinal) {
-                    const final = result[0].transcript.trim();
-                    if (final) {
-                        appendFinalUtterance(final);
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalChunk += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
                     }
-                    currentTextElem.textContent = '';
-                } else {
-                    interim = result[0].transcript;
-                    currentTextElem.textContent = interim;
                 }
-            };
 
+                if (finalChunk) {
+                    accumulatedText += " " + finalChunk.trim();
+                }
+
+                // Показваме натрупания текст заедно с текущите думи в реално време
+                const displayText = (accumulatedText + " " + interimTranscript).trim();
+                currentTextElem.textContent = displayText || 'Слушам реч на български...';
+            };
 
             recognition.onerror = (event) => {
                 console.error('Грешка при разпознаване:', event.error);
@@ -231,6 +227,7 @@
                 recognition.stop();
                 stopUIState();
             } else {
+                accumulatedText = "";
                 currentTextElem.textContent = 'Слушам реч на български...';
                 try {
                     recognition.start();
@@ -241,6 +238,7 @@
         }
 
         function stopUIState() {
+            isListening-false;
             isListening = false;
             toggleBtn.textContent = 'Старт микрофон';
             toggleBtn.classList.remove('active');
@@ -248,20 +246,9 @@
             statusText.textContent = 'Спряно';
         }
 
-        function appendFinalUtterance(text) {
-            const div = document.createElement('div');
-            div.className = 'utterance';
-            div.textContent = text;
-            container.insertBefore(div, currentTextElem);
-            
-            // Автоматично скролване надолу при нови редове
-            window.scrollTo(0, document.body.scrollHeight);
-        }
-
         function updateFontSize(size) {
             document.documentElement.style.setProperty('--font-size', size);
         }
     </script>
-
 </body>
 </html>
