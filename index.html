@@ -155,7 +155,6 @@
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition = null;
         let isListening = false;
-        let accumulatedText = "";
 
         const toggleBtn = document.getElementById('toggle-btn');
         const currentTextElem = document.getElementById('current-text');
@@ -181,24 +180,14 @@
             };
 
             recognition.onresult = (event) => {
-                let interimTranscript = '';
-                let finalChunk = '';
+                let currentTranscript = '';
 
+                // Взимаме само последния активен резултат от сесията, за да няма дублиране
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        finalChunk += event.results[i][0].transcript;
-                    } else {
-                        interimTranscript += event.results[i][0].transcript;
-                    }
+                    currentTranscript += event.results[i][0].transcript;
                 }
 
-                if (finalChunk) {
-                    accumulatedText += " " + finalChunk.trim();
-                }
-
-                // Показваме натрупания текст заедно с текущите думи в реално време
-                const displayText = (accumulatedText + " " + interimTranscript).trim();
-                currentTextElem.textContent = displayText || 'Слушам реч на български...';
+                currentTextElem.textContent = currentTranscript.trim() || 'Слушам реч на български...';
             };
 
             recognition.onerror = (event) => {
@@ -227,7 +216,6 @@
                 recognition.stop();
                 stopUIState();
             } else {
-                accumulatedText = "";
                 currentTextElem.textContent = 'Слушам реч на български...';
                 try {
                     recognition.start();
@@ -238,7 +226,6 @@
         }
 
         function stopUIState() {
-            isListening-false;
             isListening = false;
             toggleBtn.textContent = 'Старт микрофон';
             toggleBtn.classList.remove('active');
@@ -250,5 +237,6 @@
             document.documentElement.style.setProperty('--font-size', size);
         }
     </script>
+
 </body>
 </html>
