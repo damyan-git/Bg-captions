@@ -157,12 +157,10 @@
         <div><span class="status-indicator" id="status-dot"></span> <span id="status-text">В готовност</span></div>
         <div>Web Speech API (bg-BG)</div>
     </div>
-
     <script>
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition = null;
         let isListening = false;
-        let finalTranscriptHistory = [];
 
         const toggleBtn = document.getElementById('toggle-btn');
         const currentTextElem = document.getElementById('current-text');
@@ -192,19 +190,20 @@
                 let interim = '';
                 let final = '';
 
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        final += event.results[i][0].transcript;
-                    } else {
-                        interim += event.results[i][0].transcript;
+                // Обхождаме само най-новия резултат, за да избегнем натрупването и дублирането
+                const latestIndex = event.results.length - 1;
+                const result = event.results[latestIndex];
+
+                if (result.isFinal) {
+                    final = result[0].transcript.trim();
+                    if (final) {
+                        appendFinalUtterance(final);
                     }
+                    currentTextElem.textContent = 'Слушам реч на български...';
+                } else {
+                    interim = result[0].transcript;
+                    currentTextElem.textContent = interim;
                 }
-
-                if (final) {
-                    appendFinalUtterance(final);
-                }
-
-                currentTextElem.textContent = interim || (finalTranscriptHistory.length === 0 ? 'Слушам реч на български...' : '');
             };
 
             recognition.onerror = (event) => {
@@ -214,7 +213,6 @@
 
             recognition.onend = () => {
                 if (isListening) {
-                    // Автоматично рестартиране при прекъсване на сесията от браузъра
                     try {
                         recognition.start();
                     } catch (e) {
@@ -234,7 +232,6 @@
                 recognition.stop();
                 stopUIState();
             } else {
-                finalTranscriptHistory = [];
                 currentTextElem.textContent = 'Слушам реч на български...';
                 try {
                     recognition.start();
@@ -258,7 +255,7 @@
             div.textContent = text;
             container.insertBefore(div, currentTextElem);
             
-            // Задължително скролване надолу при нови редове
+            // Автоматично скролване надолу при нови редове
             window.scrollTo(0, document.body.scrollHeight);
         }
 
@@ -266,5 +263,6 @@
             document.documentElement.style.setProperty('--font-size', size);
         }
     </script>
+
 </body>
 </html>
