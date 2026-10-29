@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Български субтитри на живо</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --accent-color: #38bdf8;
+            --secondary-bg: #1e293b;
+            --border-color: #334155;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            background-color: var(--secondary-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: #0f172a;
+            border: none;
+            padding: 0.5rem 1rem;
+            font-weight: 600;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button.active {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .settings-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            font-size: 0.875rem;
+        }
+
+        select {
+            background: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+        }
+
+        main {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        #transcript-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .utterance {
+            font-size: var(--font-size, 2rem);
+            line-height: 1.4;
+            transition: opacity 0.3s;
+        }
+
+        .utterance.interim {
+            opacity: 0.6;
+            font-style: italic;
+        }
+
+        .status-bar {
+            padding: 0.5rem 1.5rem;
+            font-size: 0.75rem;
+            background-color: var(--secondary-bg);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            color: #94a3b8;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #64748b;
+            margin-right: 0.5s;
+        }
+
+        .status-indicator.listening {
+            background-color: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="font-weight: 700; font-size: 1.1rem;">Български субтитри на живо</div>
+        <div class="controls">
+            <div class="settings-group">
+                <label for="font-size-select">Размер:</label>
+                <select id="font-size-select" onchange="updateFontSize(this.value)">
+                    <option value="1.5rem">Нормален</option>
+                    <option value="2rem" selected>Голям</option>
+                    <option value="2.5rem">Много голям</option>
+                    <option value="3rem">Гигантски</option>
+                </select>
+            </div>
+            <button id="toggle-btn" onclick="toggleRecognition()">Старт микрофон</button>
+        </div>
+    </header>
+
+    <main>
+        <div id="transcript-container">
+            <div class="utterance interim" id="current-text">Натиснете „Старт микрофон“, за да започнете речта...</div>
+        </div>
+    </main>
+
+    <div class="status-bar">
+        <div><span class="status-indicator" id="status-dot"></span> <span id="status-text">В готовност</span></div>
+        <div>Web Speech API (bg-BG)</div>
+    </div>
+
+    <script>
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let isListening = false;
+        let finalTranscriptHistory = [];
+
+        const toggleBtn = document.getElementById('toggle-btn');
+        const currentTextElem = document.getElementById('current-text');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const container = document.getElementById('transcript-container');
+
+        if (!SpeechRecognition) {
+            alert('Вашият браузър не поддържа Web Speech API. Използвайте Google Chrome.');
+            toggleBtn.disabled = true;
+            statusText.textContent = ' API не се поддържа';
+        } else {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'bg-BG';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onstart = () => {
+                isListening = true;
+                toggleBtn.textContent = 'Спри микрофон';
+                toggleBtn.classList.add('active');
+                statusDot.classList.add('listening');
+                statusText.textContent = 'Слушане...';
+            };
+
+            recognition.onresult = (event) => {
+                let interim = '';
+                let final = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        final += event.results[i][0].transcript;
+                    } else {
+                        interim += event.results[i][0].transcript;
+                    }
+                }
+
+                if (final) {
+                    appendFinalUtterance(final);
+                }
+
+                currentTextElem.textContent = interim || (finalTranscriptHistory.length === 0 ? 'Слушам реч на български...' : '');
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Грешка при разпознаване:', event.error);
+                statusText.textContent = 'Грешка: ' + event.error;
+            };
+
+            recognition.onend = () => {
+                if (isListening) {
+                    // Автоматично рестартиране при прекъсване на сесията от браузъра
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.error(e);
+                    }
+                } else {
+                    stopUIState();
+                }
+            };
+        }
+
+        function toggleRecognition() {
+            if (!recognition) return;
+
+            if (isListening) {
+                isListening = false;
+                recognition.stop();
+                stopUIState();
+            } else {
+                finalTranscriptHistory = [];
+                currentTextElem.textContent = 'Слушам реч на български...';
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        }
+
+        function stopUIState() {
+            isListening = false;
+            toggleBtn.textContent = 'Старт микрофон';
+            toggleBtn.classList.remove('active');
+            statusDot.classList.remove('listening');
+            statusText.textContent = 'Спряно';
+        }
+
+        function appendFinalUtterance(text) {
+            const div = document.createElement('div');
+            div.className = 'utterance';
+            div.textContent = text;
+            container.insertBefore(div, currentTextElem);
+            
+            // Задължително скролване надолу при нови редове
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        function updateFontSize(size) {
+            document.documentElement.style.setProperty('--font-size', size);
+        }
+    </script>
+</body>
+</html>
