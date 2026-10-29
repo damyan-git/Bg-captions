@@ -186,25 +186,24 @@
                 statusText.textContent = 'Слушане...';
             };
 
-            recognition.onresult = (event) => {
+                        recognition.onresult = (event) => {
                 let interim = '';
-                let final = '';
-
-                // Обхождаме само най-новия резултат, за да избегнем натрупването и дублирането
-                const latestIndex = event.results.length - 1;
-                const result = event.results[latestIndex];
+                
+                // Взимаме само най-новия резултат от опашката
+                const result = event.results[event.results.length - 1];
 
                 if (result.isFinal) {
-                    final = result[0].transcript.trim();
+                    const final = result[0].transcript.trim();
                     if (final) {
                         appendFinalUtterance(final);
                     }
-                    currentTextElem.textContent = 'Слушам реч на български...';
+                    currentTextElem.textContent = '';
                 } else {
                     interim = result[0].transcript;
                     currentTextElem.textContent = interim;
                 }
             };
+
 
             recognition.onerror = (event) => {
                 console.error('Грешка при разпознаване:', event.error);
