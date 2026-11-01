@@ -11,7 +11,6 @@
             --accent-color: #38bdf8;
             --secondary-bg: #1e293b;
             --border-color: #334155;
-            --interim-color: #94a3b8;
         }
 
         /* Теми */
@@ -74,41 +73,24 @@
 
         main {
             flex: 1;
-            padding: 1.5rem;
-            padding-top: 45vh; /* Позиционира началния текст малко под средата на екрана */
-            overflow-y: auto;
+            padding: 2rem;
             display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-            scroll-behavior: smooth;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
         }
 
         #transcript-container {
-            max-width: 1000px;
-            margin: 0 auto;
+            max-width: 950px;
             width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .utterance {
-            font-size: var(--font-size, 2rem);
-            line-height: 1.4;
-            opacity: 0.85;
-            transition: opacity 0.3s ease;
-        }
-
-        .utterance.history {
-            opacity: 0.45;
-            font-size: calc(var(--font-size, 2rem) * 0.9);
         }
 
         #current-text {
-            font-size: var(--font-size, 2rem);
-            line-height: 1.4;
+            font-size: var(--font-size, 2.5rem);
+            line-height: 1.5;
             font-weight: 600;
-            color: var(--text-color);
+            word-break: break-word;
         }
 
         .status-bar {
@@ -143,10 +125,10 @@
         <div style="font-weight: 700; font-size: 1rem;">БГ Субтитри</div>
         <div class="controls">
             <select onchange="updateFontSize(this.value)">
-                <option value="1.5rem">Нормален</option>
-                <option value="2rem" selected>Голям</option>
-                <option value="2.5rem">Много голям</option>
-                <option value="3rem">Гигантски</option>
+                <option value="2rem">Нормален</option>
+                <option value="2.5rem" selected>Голям</option>
+                <option value="3rem">Много голям</option>
+                <option value="3.5rem">Гигантски</option>
             </select>
             <select onchange="setTheme(this.value)">
                 <option value="theme-cinema">Кино (Жълто)</option>
@@ -158,9 +140,8 @@
         </div>
     </header>
 
-    <main id="main-scroll">
+    <main>
         <div id="transcript-container">
-            <div id="history-container"></div>
             <div id="current-text">Натиснете „Старт“, за да започнете...</div>
         </div>
     </main>
@@ -178,27 +159,22 @@
 
         const toggleBtn = document.getElementById('toggle-btn');
         const currentTextElem = document.getElementById('current-text');
-        const historyContainer = document.getElementById('history-container');
-        const mainScroll = document.getElementById('main-scroll');
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
 
-        // Функция за заключване на екрана (да не загасва)
         async function requestWakeLock() {
             try {
                 if ('wakeLock' in navigator) {
                     wakeLock = await navigator.wakeLock.request('screen');
                 }
             } catch (err) {
-                console.error(`Wake Lock грешка: ${err.name}, ${err.message}`);
+                console.error(err);
             }
         }
 
         function releaseWakeLock() {
             if (wakeLock !== null) {
-                wakeLock.release().then(() => {
-                    wakeLock = null;
-                });
+                wakeLock.release().then(() => { wakeLock = null; });
             }
         }
 
@@ -222,26 +198,14 @@
             };
 
             recognition.onresult = (event) => {
-                let interim = '';
-                let final = '';
+                let currentTranscript = '';
 
+                // Взимаме само последния активен резултат от сесията директно
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        final += event.results[i][0].transcript;
-                    } else {
-                        interim += event.results[i][0].transcript;
-                    }
+                    currentTranscript += event.results[i][0].transcript;
                 }
 
-                if (final.trim()) {
-                    const p = document.createElement('div');
-                    p.className = 'utterance history';
-                    p.textContent = final.trim();
-                    historyContainer.appendChild(p);
-                }
-
-                currentTextElem.textContent = interim.trim() || (historyContainer.hasChildNodes() ? '' : 'Слушам реч на български...');
-                mainScroll.scrollTop = mainScroll.scrollHeight;
+                currentTextElem.textContent = currentTranscript.trim() || 'Слушам реч на български...';
             };
 
             recognition.onerror = (event) => {
@@ -265,7 +229,6 @@
                 recognition.stop();
                 stopUIState();
             } else {
-                historyContainer.innerHTML = '';
                 currentTextElem.textContent = 'Слушам реч на български...';
                 try { recognition.start(); } catch (e) { console.error(e); }
             }
