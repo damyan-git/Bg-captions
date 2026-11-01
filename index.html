@@ -41,6 +41,7 @@
             border-bottom: 1px solid var(--border-color);
             flex-wrap: wrap;
             gap: 0.5rem;
+            z-index: 10;
         }
 
         .controls {
@@ -74,10 +75,11 @@
         main {
             flex: 1;
             padding: 1.5rem;
+            padding-top: 45vh; /* Позиционира началния текст малко под средата на екрана */
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            justify-content: flex-end;
+            justify-content: flex-start;
             scroll-behavior: smooth;
         }
 
@@ -98,8 +100,8 @@
         }
 
         .utterance.history {
-            opacity: 0.4;
-            font-size: calc(var(--font-size, 2rem) * 0.85);
+            opacity: 0.45;
+            font-size: calc(var(--font-size, 2rem) * 0.9);
         }
 
         #current-text {
@@ -117,6 +119,7 @@
             display: flex;
             justify-content: space-between;
             color: #94a3b8;
+            z-index: 10;
         }
 
         .status-indicator {
@@ -171,6 +174,7 @@
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition = null;
         let isListening = false;
+        let wakeLock = null;
 
         const toggleBtn = document.getElementById('toggle-btn');
         const currentTextElem = document.getElementById('current-text');
@@ -179,8 +183,27 @@
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
 
+        // Функция за заключване на екрана (да не загасва)
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {
+                console.error(`Wake Lock грешка: ${err.name}, ${err.message}`);
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release().then(() => {
+                    wakeLock = null;
+                });
+            }
+        }
+
         if (!SpeechRecognition) {
-            alert('Грешка: Вашият браузър не поддържа гласово разпознаване. На устройства без Google услуги (като Huawei HMS) това API може да не е налично.');
+            alert('Грешка: Вашият браузър не поддържа гласово разпознаване.');
             toggleBtn.disabled = true;
             statusText.textContent = ' API не се поддържа';
         } else {
@@ -195,6 +218,7 @@
                 toggleBtn.classList.add('active');
                 statusDot.classList.add('listening');
                 statusText.textContent = 'Слушане...';
+                requestWakeLock();
             };
 
             recognition.onresult = (event) => {
@@ -210,7 +234,6 @@
                 }
 
                 if (final.trim()) {
-                    // Преместваме готовия текст в историята за плавност
                     const p = document.createElement('div');
                     p.className = 'utterance history';
                     p.textContent = final.trim();
@@ -254,6 +277,7 @@
             toggleBtn.classList.remove('active');
             statusDot.classList.remove('listening');
             statusText.textContent = 'Спряно';
+            releaseWakeLock();
         }
 
         function updateFontSize(size) {
